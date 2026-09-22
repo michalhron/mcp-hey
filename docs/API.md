@@ -129,6 +129,7 @@ Hey.com organizes email differently from traditional email clients. Instead of f
 | **Trash** | `/topics/trash` | Deleted emails |
 | **Spam** | `/topics/spam` | Spam-marked emails |
 | **Drafts** | `/entries/drafts` | Unsent email drafts |
+| **Sent** | `/sent` | Emails you've sent |
 
 ### Key Concepts
 
@@ -1177,3 +1178,4 @@ When a session expires, requests return a 302 redirect to `/sign_in`. The mcp-he
 | 2026-05-11 | **BREAKING (MCP)**: Bubble-up MCP tools (`hey_bubble_up`, `hey_bubble_up_if_no_reply`, `hey_pop_bubble`) renamed their `posting_id` parameter to `topic_id`. Empirically verified against the live Hey UI: every bubble-up form on `/topics/{id}/bubble_up/menu` posts to `/topics/{topicId}/bubble_up*` — passing a posting ID yields 404. Removed the `/postings/bubble_up?posting_ids[]=` fallback (it accepted a different ID type and masked the 404 signal). |
 | 2026-07-12 | Added draft management: `POST /messages` with `entry[status]=drafted` (no `commit`) creates a draft and returns its ID via the `Location` header on a `204`; `POST /messages/{id}` with `_method=patch` and `entry[status]=drafted` edits it; `POST /entries/drafts/{id}` with `_method=delete` removes it permanently (no trash/restore). Verified live via Chrome network capture and a raw authenticated `fetch()`. Surfaced via new `hey_save_draft`, `hey_edit_draft`, `hey_delete_draft` MCP tools. |
 | 2026-07-12 | **Fix**: `hey_list_emails(folder="drafts")` was silently returning zero results — `extractEmailsFromHtml` only recognised `/topics/{id}` links for ID extraction, but draft rows carry no `data-identifier`/`data-entry-id` and no `/topics/` link, only `/messages/{id}/edit`. Added a message-ID fallback so drafts are no longer dropped. |
+| 2026-09-21 | Added `hey_list_emails(folder="sent")` reading `GET /sent` (confirmed as the send-success redirect target by the existing `classifyRedirect` check in `src/tools/send.ts`). Reuses the same `article.posting` row parser as every other folder. `from` is hardcoded to `"Me"` (always true for a sent item); the name/email the row markup actually surfaces is treated as the recipient and returned under `to`/`toEmail` instead, except when it's the literal placeholder `"Me"` (as seen on Drafts rows), in which case `to` is left unset rather than mislabelling a placeholder as a recipient. **Unverified live**: no Sent-page HTML was available to confirm the `.posting__detail` value is actually the recipient rather than another "Me" placeholder — treat `to`/`toEmail` accuracy as unconfirmed until checked against a real mailbox. |

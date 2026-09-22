@@ -216,7 +216,7 @@ mcp-hey/
 
 | Category | Tools |
 |----------|-------|
-| Read | `hey_list_emails` (imbox, feed, paper_trail, trash, spam, drafts), `hey_imbox_summary`, `hey_list_set_aside`, `hey_list_reply_later`, `hey_list_screener`, `hey_read_email`, `hey_download_attachment`, `hey_get_calendar_invite` |
+| Read | `hey_list_emails` (imbox, feed, paper_trail, trash, spam, drafts, sent), `hey_imbox_summary`, `hey_list_set_aside`, `hey_list_reply_later`, `hey_list_screener`, `hey_read_email`, `hey_download_attachment`, `hey_get_calendar_invite` |
 | Labels & Collections | `hey_list_labels`, `hey_list_label_emails`, `hey_label`, `hey_list_collections`, `hey_list_collection_emails`, `hey_collection` |
 | Send | `hey_send_email`, `hey_reply`, `hey_forward` |
 | Triage | `hey_set_aside`, `hey_unset_aside`, `hey_reply_later`, `hey_remove_reply_later`, `hey_move_to`, `hey_set_status`, `hey_mark_unseen`, `hey_mark_seen`, `hey_read_status`, `hey_thread_mute` |

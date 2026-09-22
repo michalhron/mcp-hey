@@ -24,6 +24,37 @@ const mockDraftsHtml = `
 </html>
 `
 
+// Assumed Hey.com markup shape for /sent, modelled on the same
+// article.posting row used by every other folder (NOT verified live — a
+// real Sent page was unreachable this session, see docs/API.md changelog
+// 2026-09-21). `.posting__detail` is assumed to carry the recipient here,
+// mirroring how it carries the literal placeholder "Me" on Drafts rows.
+const mockSentHtml = `
+<!DOCTYPE html>
+<html>
+<body>
+  <section id="postings" class="postings">
+    <article class="posting" data-list-target="item">
+      <a class="posting__column posting__link permalink" href="/topics/1907289505">
+        <span class="posting__title">Re: Contract renewal</span>
+        <span class="posting__detail">Jane Smith</span>
+        <span class="posting__summary">Sounds good, I'll get the paperwork...</span>
+        <time class="posting__time" datetime="2026-09-10T14:00:00Z">Sep 10</time>
+      </a>
+    </article>
+    <article class="posting" data-list-target="item">
+      <a class="posting__column posting__link permalink" href="/topics/1907289506">
+        <span class="posting__title">Draft follow-up sent to self</span>
+        <span class="posting__detail">Me</span>
+        <span class="posting__summary">Note to self...</span>
+        <time class="posting__time" datetime="2026-09-09T09:00:00Z">Sep 9</time>
+      </a>
+    </article>
+  </section>
+</body>
+</html>
+`
+
 // Mock HTML responses
 const mockImboxHtml = `
 <!DOCTYPE html>
@@ -197,6 +228,25 @@ describe("Read Tools", () => {
       expect(emails[0].topicId).toBeUndefined()
       expect(emails[0].entryId).toBeUndefined()
       expect(emails[0].postingId).toBeUndefined()
+    })
+  })
+
+  describe("Sent folder parsing", () => {
+    test("from is always Me; the parsed identity moves to `to` unless it's the 'Me' placeholder", () => {
+      const emails = extractEmailsFromHtml(mockSentHtml, "sent")
+
+      expect(emails.length).toBe(2)
+      expect(emails[0].from).toBe("Me")
+      expect(emails[0].to).toBe("Jane Smith")
+      expect(emails[1].from).toBe("Me")
+      expect(emails[1].to).toBeUndefined()
+    })
+
+    test("other folders are unaffected — from/to behave as before when folder is omitted", () => {
+      const emails = extractEmailsFromHtml(mockSentHtml)
+
+      expect(emails[0].from).toBe("Jane Smith")
+      expect(emails[0].to).toBeUndefined()
     })
   })
 })

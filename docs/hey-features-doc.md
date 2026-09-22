@@ -18,7 +18,7 @@ Tool definitions and parameters live in [`TOOLS.md`](TOOLS.md). Endpoint details
 | List Trash | Trash | `hey_list_emails` (folder=trash) | Implemented |
 | List Spam | Spam | `hey_list_emails` (folder=spam) | Implemented |
 | List Drafts | Drafts | `hey_list_emails` (folder=drafts) | Implemented |
-| List Sent | Sent | — | Not implemented |
+| List Sent | Sent | `hey_list_emails` (folder=sent) | Implemented |
 | List Previously Seen | Previously Seen | — | Not implemented |
 | List Screened Out | Screened Out | — | Not implemented |
 | List All Files | All Files | — | Not implemented |

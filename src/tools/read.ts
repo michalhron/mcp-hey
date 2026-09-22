@@ -28,6 +28,8 @@ export interface Email {
   postingId?: string // For /postings/{id}/* operations (muting)
   from: string
   fromEmail?: string
+  to?: string // Recipient, only populated for folder="sent"
+  toEmail?: string
   subject: string
   snippet?: string
   date?: string
@@ -151,6 +153,7 @@ function extractAttachmentCount(entry: HTMLElement): number | undefined {
 
 export function extractEmailsFromHtml(
   htmlOrRoot: string | HTMLElement,
+  folder?: string,
 ): Email[] {
   try {
     const root =
@@ -238,11 +241,29 @@ export function extractEmailsFromHtml(
       // Parse sender from avatar alt which may be "Name <email>" format
       const avatarAlt = avatarEl?.getAttribute("alt") || ""
       const senderFromAvatar = avatarAlt.split("<")[0]?.trim() || avatarAlt
-      const from = senderEl?.text?.trim() || senderFromAvatar || "Unknown"
+      const identity = senderEl?.text?.trim() || senderFromAvatar || "Unknown"
 
-      // Extract sender email from avatar alt if present
+      // Extract identity email from avatar alt if present
       const emailMatch = avatarAlt.match(/<([^>]+@[^>]+)>/)
-      const fromEmail = emailMatch?.[1]
+      const identityEmail = emailMatch?.[1]
+
+      // On Sent, every row was sent by the account owner — that's true
+      // regardless of what the list markup shows, so it needs no parsing.
+      // The name/email this markup actually surfaces (.posting__detail /
+      // avatar alt) is the recipient there, not the sender, so it belongs
+      // under `to`/`toEmail` instead of being mislabelled as `from`.
+      // ponytail: unverified against a real Sent page (live check was
+      // blocked by sandboxed credential access) — Drafts uses the same
+      // .posting__detail slot but renders the literal placeholder "Me"
+      // there instead of a name, so skip that case rather than relabel a
+      // placeholder as a recipient. Re-check against a real mailbox and
+      // drop this guard if Sent never shows "Me".
+      const isSent = folder === "sent"
+      const isPlaceholder = /^me$/i.test(identity)
+      const from = isSent ? "Me" : identity
+      const fromEmail = isSent ? undefined : identityEmail
+      const to = isSent && !isPlaceholder ? identity : undefined
+      const toEmail = isSent && !isPlaceholder ? identityEmail : undefined
 
       // Snippet/preview is in .posting__summary
       const snippetEl = entry.querySelector(".posting__summary")
@@ -278,6 +299,8 @@ export function extractEmailsFromHtml(
         postingId,
         from,
         fromEmail,
+        to,
+        toEmail,
         subject,
         snippet,
         date,
@@ -732,7 +755,7 @@ async function listFolder(
     if (!next) break // no further pages
     html = await heyClient.fetchHtml(next)
   }
-  const emails = extractEmailsFromHtml(html).slice(0, limit)
+  const emails = extractEmailsFromHtml(html, folder).slice(0, limit)
 
   // Update cache (only for first page)
   if (page === 1) {
@@ -847,6 +870,12 @@ export async function listDrafts(
   options: ListOptions = {},
 ): Promise<CachedResult<Email[]>> {
   return listFolder("drafts", "/entries/drafts", options)
+}
+
+export async function listSent(
+  options: ListOptions = {},
+): Promise<CachedResult<Email[]>> {
+  return listFolder("sent", "/sent", options)
 }
 
 function extractIdNameLinks(

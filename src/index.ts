@@ -60,6 +60,7 @@ import {
   listPaperTrail,
   listReplyLater,
   listScreener,
+  listSent,
   listSetAside,
   listSpam,
   listTrash,
@@ -183,15 +184,23 @@ const tools: Tool[] = [
     name: "hey_list_emails",
     annotations: { readOnlyHint: true, openWorldHint: true },
     description:
-      "List emails in a Hey.com folder/view. Returns cached results unless force_refresh=true. Each email includes id, topicId, postingId, entryId, from, subject, date, and unread status.",
+      'List emails in a Hey.com folder/view. Returns cached results unless force_refresh=true. Each email includes id, topicId, postingId, entryId, from, subject, date, and unread status. For folder=sent, from is always "Me" and the recipient (unverified against a live Sent page) is under to/toEmail instead.',
     inputSchema: {
       type: "object" as const,
       properties: {
         folder: {
           type: "string",
-          enum: ["imbox", "feed", "paper_trail", "trash", "spam", "drafts"],
+          enum: [
+            "imbox",
+            "feed",
+            "paper_trail",
+            "trash",
+            "spam",
+            "drafts",
+            "sent",
+          ],
           description:
-            "The folder/view to list emails from: imbox (important), feed (newsletters), paper_trail (receipts), trash, spam, or drafts",
+            "The folder/view to list emails from: imbox (important), feed (newsletters), paper_trail (receipts), trash, spam, drafts, or sent (emails you sent)",
         },
         limit: {
           type: "number",
@@ -1186,10 +1195,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           "trash",
           "spam",
           "drafts",
+          "sent",
         ]
         if (!folder || !validFolders.includes(folder)) {
           return errorResult(
-            "Error: folder is required and must be one of: imbox, feed, paper_trail, trash, spam, drafts",
+            "Error: folder is required and must be one of: imbox, feed, paper_trail, trash, spam, drafts, sent",
           )
         }
         const limit = clampNumber(args?.limit, 25, 1, 100)
@@ -1210,6 +1220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           trash: listTrash,
           spam: listSpam,
           drafts: listDrafts,
+          sent: listSent,
         }
         result = await folderFns[folder](options)
         break

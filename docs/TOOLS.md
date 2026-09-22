@@ -26,7 +26,7 @@ List emails in a Hey.com folder/view. Returns cached results unless force_refres
 **Parameters:**
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| folder | string | **Yes** | - | Folder/view: `imbox`, `feed`, `paper_trail`, `trash`, `spam`, or `drafts` |
+| folder | string | **Yes** | - | Folder/view: `imbox`, `feed`, `paper_trail`, `trash`, `spam`, `drafts`, or `sent` |
 | limit | number | No | 25 | Maximum number of emails to return (1-100) |
 | page | number | No | 1 | Page number for pagination |
 | force_refresh | boolean | No | false | Bypass cache and fetch fresh data |
@@ -40,6 +40,9 @@ List emails in a Hey.com folder/view. Returns cached results unless force_refres
 | `trash` | Trashed emails |
 | `spam` | Spam-flagged emails |
 | `drafts` | Draft emails |
+| `sent` | Emails you sent |
+
+**Sent folder notes:** `from` is always `"Me"` (you always sent it); the recipient goes under `to`/`toEmail` instead. This parsing is unverified against a live Sent page — see [`API.md`](API.md) changelog.
 
 **Returns:**
 ```json
