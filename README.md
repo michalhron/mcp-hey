@@ -193,6 +193,7 @@ mcp-hey/
     session.ts         # Session management and validation
     errors.ts          # Error classes and sanitisation
     archive.ts         # Optional .eml archive of messages you read (HEY_ARCHIVE_DIR)
+    contact-box.ts     # A sender's delivery box (Imbox, Feed, Paper Trail) from their contact page
     cache/             # SQLite cache (db, schema, messages, search)
     tools/             # MCP tool implementations
       read.ts          # Reading and listing
