@@ -21,7 +21,7 @@ Notes from the 2026-10-09 test-and-fix session. They cover mcp-hey and its compa
 | hybrid, no reranker | 3/12 | 4/12 | 5/12 | 0.98 |
 | hybrid + reranker | 5/12 | 5/12 | 6/12 | 1.28 |
 
-- ROADMAP.md Phase 5's "done when" (right message in the top 5 for queries phrased from memory) is **not met yet**: 5/12.
+- new-outlook-mcp's ROADMAP.md Phase 5 "done when" (right message in the top 5 for queries phrased from memory) is **not met yet**: 5/12.
 - 4 of 12 targets never reach the candidate list: a first-stage recall problem the reranker cannot fix.
 - multilingual-e5-base instead of e5-small: median rank 253 → 171, top 10 unchanged, 3× slower to embed. Not adopted (model deleted).
 - e5-small scores almost everything between 0.79 and 0.87, so pure vector search cannot separate short transactional mail (invoices, receipts) from the rest.
