@@ -30,15 +30,22 @@ const RAW = [
   "Hello. From: not@a-header.example",
 ].join("\r\n")
 
-/** A cache where listing 900 was in the imbox and news@example.net's mail was in the feed. */
+/** Listing 900 was in the imbox. boss@ is delivered to the Imbox. news@'s mail was listed in the Feed. */
 const lookup: BoxLookup = {
   listed: (id) =>
     ({ "900": "imbox", "901": "set_aside", "902": "unknown" })[id] ?? null,
+  contactBox: async (s) =>
+    ({ "boss@example.org": "imbox", "shop@example.com": "screened_out" })[s] ??
+    null,
   senderBox: (s) =>
     ({ "news@example.net": "feed", "pat@example.org": "paper_trail" })[s] ??
     null,
 }
-const none: BoxLookup = { listed: () => null, senderBox: () => null }
+const none: BoxLookup = {
+  listed: () => null,
+  contactBox: async () => null,
+  senderBox: () => null,
+}
 
 let dir: string
 const saved = {
@@ -48,6 +55,12 @@ const saved = {
 
 function unset(name: string) {
   Reflect.deleteProperty(process.env, name)
+}
+
+function filesOnDisk(root: string): string[] {
+  return readdirSync(root).flatMap((box) =>
+    readdirSync(join(root, box)).map((f) => join(box, f)),
+  )
 }
 
 beforeEach(() => {
@@ -75,28 +88,43 @@ describe("senderOf", () => {
 })
 
 describe("resolveBox", () => {
-  test("the message's own listing wins", () => {
-    expect(resolveBox(["900"], "news@example.net", lookup)).toBe("imbox")
-    expect(resolveBox(["901"], "news@example.net", lookup)).toBe("set_aside")
+  test("the message's own listing wins", async () => {
+    expect(await resolveBox(["900"], "news@example.net", lookup)).toBe("imbox")
+    expect(await resolveBox(["901"], "boss@example.org", lookup)).toBe(
+      "set_aside",
+    )
   })
 
-  test("falls back to the sender's destination, then unknown", () => {
-    expect(resolveBox(["999"], "news@example.net", lookup)).toBe("feed")
-    expect(resolveBox(["902"], "pat@example.org", lookup)).toBe("paper_trail")
-    expect(resolveBox(["999"], "new@example.org", lookup)).toBe("unknown")
-    expect(resolveBox([], null, lookup)).toBe("unknown")
+  test("then the delivery setting, then the sender's listed mail, then unknown", async () => {
+    expect(await resolveBox(["999"], "boss@example.org", lookup)).toBe("imbox")
+    expect(await resolveBox(["999"], "news@example.net", lookup)).toBe("feed")
+    expect(await resolveBox(["902"], "pat@example.org", lookup)).toBe(
+      "paper_trail",
+    )
+    expect(await resolveBox(["999"], "shop@example.com", lookup)).toBe(
+      "unknown",
+    ) // screened out
+    expect(await resolveBox(["999"], "new@example.org", lookup)).toBe("unknown")
+    expect(await resolveBox([], null, lookup)).toBe("unknown")
   })
 
-  test("a failing lookup gives unknown", () => {
+  test("a failing step falls through to the next", async () => {
     const err = spyOn(console, "error").mockImplementation(() => {})
     const broken: BoxLookup = {
       listed: () => {
         throw new Error("db gone")
       },
-      senderBox: () => null,
+      contactBox: async () => {
+        throw new Error("offline")
+      },
+      senderBox: (s) => (s === "news@example.net" ? "feed" : null),
     }
-    expect(resolveBox(["900"], "x@example.org", broken)).toBe("unknown")
-    err.mockRestore()
+    try {
+      expect(await resolveBox(["900"], "news@example.net", broken)).toBe("feed")
+      expect(await resolveBox(["900"], "x@example.org", broken)).toBe("unknown")
+    } finally {
+      err.mockRestore()
+    }
   })
 })
 
@@ -127,7 +155,7 @@ describe("archive", () => {
     expect(statSync(join(target, "imbox", "123.eml")).mode & 0o777).toBe(0o600)
     expect(statSync(target).mode & 0o777).toBe(0o700)
     expect(statSync(join(target, "imbox")).mode & 0o777).toBe(0o700)
-    expect(readdirSync(join(target, "imbox"))).toEqual(["123.eml"])
+    expect(filesOnDisk(target)).toEqual([join("imbox", "123.eml")])
   })
 
   test("skips boxes that are not wanted", async () => {
@@ -135,7 +163,7 @@ describe("archive", () => {
     process.env.HEY_ARCHIVE_BOXES = "imbox"
     const feedRaw = RAW.replace("Pat@Example.org", "news@example.net")
     expect(await archiveRawMessage("124", feedRaw, { lookup })).toBeNull()
-    expect(await archiveRawMessage("125", RAW, { lookup: none })).toBeNull() // unknown not listed
+    expect(await archiveRawMessage("125", RAW, { lookup: none })).toBeNull() // unknown is not listed
     expect(
       await archiveRawMessage("126", RAW, { listingIds: ["900"], lookup }),
     ).toBe(join(dir, "imbox", "126.eml"))
@@ -167,15 +195,13 @@ describe("archive", () => {
   test("fetchRawMessage archives what it fetched, without a second request", async () => {
     process.env.HEY_ARCHIVE_DIR = dir
     const spy = spyOn(heyClient, "fetchHtml").mockResolvedValue(RAW)
-    const err = spyOn(console, "error").mockImplementation(() => {})
     try {
       expect(await fetchRawMessage("456", ["topic-1"], none)).toBe(RAW)
       expect(spy).toHaveBeenCalledTimes(1)
       expect(spy).toHaveBeenCalledWith("/messages/456.text")
-      expect(BOXES_ON_DISK(dir)).toEqual([join("unknown", "456.eml")])
+      expect(filesOnDisk(dir)).toEqual([join("unknown", "456.eml")])
     } finally {
       spy.mockRestore()
-      err.mockRestore()
     }
   })
 
@@ -193,9 +219,3 @@ describe("archive", () => {
     }
   })
 })
-
-function BOXES_ON_DISK(root: string): string[] {
-  return readdirSync(root).flatMap((box) =>
-    readdirSync(join(root, box)).map((f) => join(box, f)),
-  )
-}

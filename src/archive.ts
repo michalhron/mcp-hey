@@ -7,12 +7,13 @@
  * made: the file is a copy of a response mcp-hey fetched anyway.
  *
  * `{box}` is where Hey files the message: `imbox`, `feed`, `paper_trail`,
- * `set_aside` or `reply_later`, else `unknown`. It is found locally, without
- * requests, in this order:
- *   1. the box this message was listed in (mcp-hey's cache),
- *   2. the box other mail from the same sender was listed in: Hey routes
- *      mail by sender, so a sender's mail lands in one destination,
- *   3. `unknown`.
+ * `set_aside` or `reply_later`, else `unknown`. It is found in this order:
+ *   1. the box this message was listed in (mcp-hey's cache, no request),
+ *   2. the sender's delivery setting on their Hey contact page ("Deliver
+ *      their emails to…"), cached for 30 days. This costs two requests the
+ *      first time a sender is seen. `HEY_ARCHIVE_SENDER_LOOKUP=off` skips it,
+ *   3. the box other mail from the same sender was listed in (no request),
+ *   4. `unknown`.
  * `HEY_ARCHIVE_BOXES` (comma-separated, e.g. `imbox,set_aside,reply_later`)
  * limits which boxes are saved. Include `unknown` to keep messages whose box
  * could not be determined. Unset means every box.
@@ -27,6 +28,7 @@ import { chmod, mkdir, rename, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { queryOne } from "./cache/db"
+import { contactBox } from "./contact-box"
 import { heyClient } from "./hey-client"
 
 const MESSAGE_ID = /^\d+$/
@@ -75,11 +77,20 @@ export function senderOf(raw: string): string | null {
 export interface BoxLookup {
   /** Box a listing id was cached under, or null. */
   listed(listingId: string): string | null
+  /** The sender's delivery setting in Hey, or null when unknown. May make requests. */
+  contactBox(sender: string): Promise<string | null>
   /** Destination box most of a sender's listed mail was in, or null. */
   senderBox(sender: string): string | null
 }
 
+function senderLookupEnabled(): boolean {
+  const v = process.env.HEY_ARCHIVE_SENDER_LOOKUP?.trim().toLowerCase()
+  return !(v === "off" || v === "false" || v === "0" || v === "no")
+}
+
 const cacheLookup: BoxLookup = {
+  contactBox: (sender) =>
+    senderLookupEnabled() ? contactBox(sender) : Promise.resolve(null),
   listed(listingId) {
     const row = queryOne<{ folder: string }>(
       "SELECT folder FROM messages WHERE id = ?",
@@ -99,12 +110,12 @@ const cacheLookup: BoxLookup = {
   },
 }
 
-/** Where Hey files a message, found from mcp-hey's own cache. Never makes a request. */
-export function resolveBox(
+/** Where Hey files a message. See the module comment for the order. */
+export async function resolveBox(
   ids: string[],
   sender: string | null,
   lookup: BoxLookup = cacheLookup,
-): Box {
+): Promise<Box> {
   try {
     for (const id of ids) {
       const box = lookup.listed(id)
@@ -115,12 +126,21 @@ export function resolveBox(
       )
         return box as Box
     }
-    if (sender) {
-      const box = lookup.senderBox(sender)
-      if (box && DESTINATIONS.includes(box)) return box as Box
-    }
   } catch (err) {
-    console.error("[mcp-hey] Could not look up the box of a message", err)
+    console.error("[mcp-hey] Could not look up the listing of a message", err)
+  }
+  if (!sender) return "unknown"
+  try {
+    const box = await lookup.contactBox(sender)
+    if (box && DESTINATIONS.includes(box)) return box as Box
+  } catch (err) {
+    console.error("[mcp-hey] Could not read the sender's delivery setting", err)
+  }
+  try {
+    const box = lookup.senderBox(sender)
+    if (box && DESTINATIONS.includes(box)) return box as Box
+  } catch (err) {
+    console.error("[mcp-hey] Could not look up the sender's listed mail", err)
   }
   return "unknown"
 }
@@ -140,7 +160,7 @@ export async function archiveRawMessage(
   if (BOXES.some((b) => existsSync(join(dir, b, `${messageId}.eml`))))
     return null
   const ids = [...(context.listingIds ?? []), messageId]
-  const box = resolveBox(ids, senderOf(raw), context.lookup)
+  const box = await resolveBox(ids, senderOf(raw), context.lookup)
   if (!archiveBoxes().has(box)) return null
   const folder = join(dir, box)
   const target = join(folder, `${messageId}.eml`)

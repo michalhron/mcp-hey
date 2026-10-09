@@ -77,6 +77,14 @@ CREATE TABLE IF NOT EXISTS search_cache (
     ttl_seconds INTEGER DEFAULT 60
 );
 
+-- Where Hey delivers each sender's mail (contact page "Deliver their emails to"),
+-- used to file archived messages by box. One row per lowercased address.
+CREATE TABLE IF NOT EXISTS contact_boxes (
+    sender_email TEXT PRIMARY KEY,
+    box TEXT NOT NULL,
+    checked_at INTEGER NOT NULL
+);
+
 -- Folder HTML cache (for re-parsing summaries without network fetch)
 CREATE TABLE IF NOT EXISTS folder_html (
     folder TEXT PRIMARY KEY,
