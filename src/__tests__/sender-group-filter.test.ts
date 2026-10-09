@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import type { ContactBoxAnswer } from "../contact-box"
 import {
+  GROUP_FILTER_TOOLS,
   type GroupFilterReport,
   applyGroupFilter,
   groupFilterFor,
@@ -140,6 +143,18 @@ describe("filtering after tagging", () => {
       unclassified: 2,
       unclassified_ids: ["2", "3"],
     })
+  })
+})
+
+describe("tool schemas", () => {
+  test("exactly the filter tools take a group parameter", () => {
+    const source = readFileSync(join(import.meta.dir, "..", "index.ts"), "utf8")
+    const blocks = source.split(/\n\s{2}\{\n\s{4}name: "/).slice(1)
+    const withGroup = blocks
+      .filter((b) => /\n\s{8}group: \{/.test(b))
+      .map((b) => b.slice(0, b.indexOf('"')))
+    expect(withGroup.sort()).toEqual([...GROUP_FILTER_TOOLS].sort())
+    expect(withGroup).not.toContain("hey_list_emails")
   })
 })
 
