@@ -3,7 +3,7 @@
  * Separates lightweight metadata from full content for fast queries.
  */
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 export const INIT_SCHEMA = `
 -- Pragma settings for optimal caching performance
