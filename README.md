@@ -23,6 +23,7 @@ mcp-hey has two moving parts: a Bun/TypeScript MCP server that exposes Hey tools
 - Search emails across boxes
 - Organise mail (set aside, reply later, screen in/out, bubble up)
 - Local SQLite cache for faster repeated reads and full-text search
+- Optional archive of the messages you read as `.eml` files, for local search tools
 - Lightweight — around 30 MB idle memory
 - Browser-identical headers and TLS posture to avoid detection
 - Runs entirely on your machine; stdio transport with no network exposure
@@ -191,6 +192,7 @@ mcp-hey/
     hey-client.ts      # HTTP client with cookie injection
     session.ts         # Session management and validation
     errors.ts          # Error classes and sanitisation
+    archive.ts         # Optional .eml archive of messages you read (HEY_ARCHIVE_DIR)
     cache/             # SQLite cache (db, schema, messages, search)
     tools/             # MCP tool implementations
       read.ts          # Reading and listing
@@ -225,11 +227,47 @@ mcp-hey/
 | Search | `hey_search` |
 | Cache | `hey_cache_status` |
 
+## Local archive of messages you read (optional)
+
+Set `HEY_ARCHIVE_DIR` to keep a copy of every message you open through mcp-hey:
+
+```json
+{
+  "mcpServers": {
+    "hey": {
+      "command": "bun",
+      "args": ["run", "/absolute/path/to/mcp-hey/src/index.ts"],
+      "env": {
+        "HEY_ARCHIVE_DIR": "~/Mail/hey-archive",
+        "HEY_ARCHIVE_BOXES": "imbox,set_aside,reply_later"
+      }
+    }
+  }
+}
+```
+
+- Each message is saved as `<box>/<message id>.eml`, the raw RFC822 source with attachments, exactly as Hey serves it from `/messages/{id}.text`.
+- `<box>` is `imbox`, `feed`, `paper_trail`, `set_aside`, `reply_later` or `unknown`. It is found in this order:
+  1. the box the message was listed in, from mcp-hey's cache (no request),
+  2. the sender's delivery setting in Hey ("Deliver their emails to…" on the contact page), cached for 30 days. The first lookup for a sender costs two requests. `HEY_ARCHIVE_SENDER_LOOKUP=off` skips this step,
+  3. the box the same sender's mail was listed in (no request),
+  4. `unknown`, for example a sender who is not a contact.
+- `HEY_ARCHIVE_BOXES` limits which boxes are saved, for example `imbox,set_aside,reply_later` to leave out newsletters (The Feed) and receipts (Paper Trail). Add `unknown` to keep messages whose box could not be determined. Unset means every box.
+- Only messages you read are saved: `hey_read_email`, `hey_download_attachment` and `hey_get_calendar_invite` already fetch this source, so archiving adds no requests to Hey.
+- Files are written atomically with permissions `600` in a folder with permissions `700`. Existing files are never overwritten.
+- A failed write is logged to stderr and never breaks the tool call.
+- Unset or empty means off, which is the default.
+
+The folder is plain `.eml` files, so any local tool can index it. [new-outlook-mcp](https://github.com/michalhron/new-outlook-mcp) imports it into its archive and search by meaning.
+
+The archive holds the full text of your mail. Keep it out of synced or shared folders unless you mean to share it.
+
 ## Privacy and security
 
 - No credentials are ever stored — only session cookies, written with `600` permissions.
 - Authentication happens entirely inside Hey's own login page (system webview).
 - All data stays on your machine. No telemetry is emitted by this project.
+- The optional message archive (`HEY_ARCHIVE_DIR`) is off by default and written with `600` permissions.
 - MCP uses stdio transport — the server never opens a network listener.
 - Session validity is checked on startup and before sensitive operations.
 
