@@ -17,6 +17,7 @@ import {
 } from "./cache"
 import { sanitiseError } from "./errors"
 import { heyClient } from "./hey-client"
+import { withSenderGroups } from "./sender-groups"
 import { downloadAttachment, getCalendarInvite } from "./tools/attachments"
 import {
   type BubbleUpSlot,
@@ -1771,6 +1772,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{ type: "text", text: `Unknown tool: ${name}` }],
           isError: true,
         }
+    }
+
+    // Add each message's sender group. Never fails the tool call.
+    try {
+      result = await withSenderGroups(name, result)
+    } catch (error) {
+      console.error(
+        "[mcp-hey] Could not add sender groups:",
+        sanitiseError(error),
+      )
     }
 
     return {

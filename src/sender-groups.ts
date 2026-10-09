@@ -301,3 +301,95 @@ export async function tagSenderGroups<T extends SenderFields>(
     },
   }
 }
+
+/**
+ * Tools whose output holds messages, by where the messages are:
+ *   list     `data` is an array of messages
+ *   summary  `data.emails` and `data.bubbledUpEmails`
+ *   thread   `data` is a thread, and `data.entries` its messages
+ */
+export const SENDER_GROUP_TOOLS: Record<string, "list" | "summary" | "thread"> =
+  {
+    hey_list_emails: "list",
+    hey_search: "list",
+    hey_list_set_aside: "list",
+    hey_list_reply_later: "list",
+    hey_list_screener: "list",
+    hey_list_label_emails: "list",
+    hey_list_collection_emails: "list",
+    hey_imbox_summary: "summary",
+    hey_read_email: "thread",
+  }
+
+/** Screener senders are not contacts yet, so a lookup could not answer: cache only. */
+const CACHE_ONLY_TOOLS = new Set(["hey_list_screener"])
+
+type Item = SenderFields & Record<string, unknown>
+
+function isItems(value: unknown): value is Item[] {
+  return Array.isArray(value)
+}
+
+/**
+ * Add `sender_group` to every message in a tool's output, and a
+ * `_sender_groups` summary next to `_cache`. Output of other tools, output of
+ * an unexpected shape, and everything in "off" mode is returned unchanged.
+ */
+export async function withSenderGroups(
+  tool: string,
+  result: unknown,
+  options: TagOptions = {},
+): Promise<unknown> {
+  const kind = SENDER_GROUP_TOOLS[tool]
+  if (!kind || !result || typeof result !== "object") return result
+  const settings = options.settings ?? senderGroupSettings()
+  if (settings.mode === "off") return result
+  const outer = result as { data?: unknown }
+  const data = outer.data
+
+  // Collect every message list in the output, tag them in one pass (one budget).
+  const lists: Item[][] = []
+  if (kind === "list" && isItems(data)) {
+    lists.push(data)
+  } else if (kind === "summary" && data && typeof data === "object") {
+    const d = data as { emails?: unknown; bubbledUpEmails?: unknown }
+    if (isItems(d.emails)) lists.push(d.emails)
+    if (isItems(d.bubbledUpEmails)) lists.push(d.bubbledUpEmails)
+  } else if (kind === "thread" && data && typeof data === "object") {
+    lists.push([data as Item])
+    const entries = (data as { entries?: unknown }).entries
+    if (isItems(entries)) lists.push(entries)
+  }
+  if (lists.length === 0) return result
+
+  const { items, summary } = await tagSenderGroups(lists.flat(), {
+    ...options,
+    settings,
+    allowLookups: options.allowLookups ?? !CACHE_ONLY_TOOLS.has(tool),
+  })
+  const tagged: Item[][] = []
+  let at = 0
+  for (const list of lists) {
+    tagged.push(items.slice(at, at + list.length) as Item[])
+    at += list.length
+  }
+
+  let newData: unknown = data
+  if (kind === "list") {
+    newData = tagged[0]
+  } else if (kind === "summary") {
+    const d = data as { emails?: unknown; bubbledUpEmails?: unknown }
+    let i = 0
+    newData = {
+      ...(data as object),
+      ...(isItems(d.emails) ? { emails: tagged[i++] } : {}),
+      ...(isItems(d.bubbledUpEmails) ? { bubbledUpEmails: tagged[i++] } : {}),
+    }
+  } else {
+    newData = {
+      ...tagged[0][0],
+      ...(tagged[1] ? { entries: tagged[1] } : {}),
+    }
+  }
+  return { ...(result as object), data: newData, _sender_groups: summary }
+}
