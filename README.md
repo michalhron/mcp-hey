@@ -11,6 +11,8 @@
 
 > A local Model Context Protocol (MCP) server that gives Claude read/write access to your [Hey.com](https://hey.com) inbox via reverse-engineered web APIs.
 
+> **About this fork.** This is [michalhron/mcp-hey](https://github.com/michalhron/mcp-hey), a fork of [Sealjay/mcp-hey](https://github.com/Sealjay/mcp-hey). It adds an optional local archive of the messages you read, filed by Hey box (see [Local archive of messages you read](#local-archive-of-messages-you-read-optional)). [new-outlook-mcp](https://github.com/michalhron/new-outlook-mcp) imports that archive next to work mail and makes it searchable by meaning. Everything else follows upstream.
+
 mcp-hey has two moving parts: a Bun/TypeScript MCP server that exposes Hey tools over stdio, and a small Python helper that uses the system webview to capture session cookies at login. Everything runs locally — no cloud relay, no credentials stored, just session cookies on disk.
 
 > **Warning — unofficial API.** Hey.com does not publish a public API; mcp-hey reverse-engineers its web endpoints and pairs them with browser-identical HTTP requests. Things can break without notice. The current documented surface lives in [`docs/API.md`](docs/API.md).
@@ -193,6 +195,7 @@ mcp-hey/
     session.ts         # Session management and validation
     errors.ts          # Error classes and sanitisation
     archive.ts         # Optional .eml archive of messages you read (HEY_ARCHIVE_DIR)
+    contact-box.ts     # A sender's delivery box (Imbox, Feed, Paper Trail) from their contact page
     cache/             # SQLite cache (db, schema, messages, search)
     tools/             # MCP tool implementations
       read.ts          # Reading and listing

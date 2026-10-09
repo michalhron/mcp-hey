@@ -24,6 +24,7 @@ mcp-hey runs locally and communicates with Claude Desktop or Cursor over stdio. 
 - **Session cookies** stored in `data/hey-cookies.json` (written with `600` permissions, never transmitted anywhere except back to Hey.com).
 - **The Python auth helper** (`auth/hey-auth.py`), which opens a system webview to Hey's login page.
 - **Tool inputs** — emails reaching your inbox are attacker-controlled text and can attempt prompt injection against Claude.
+- **The optional message archive** (`HEY_ARCHIVE_DIR`), which holds the full source of the messages you read, written with `600` permissions in folders mcp-hey creates with `700`. Keep it out of synced or shared folders.
 
 Issues in any of those areas are in scope for this repository.
 

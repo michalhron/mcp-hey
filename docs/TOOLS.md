@@ -273,6 +273,13 @@ parsed calendar invites alongside the body.
 > When the response is served from cache, `attachments` and
 > `calendar_invites` may be omitted; pass `force_refresh: true` to populate.
 
+> **Local archive (optional)**. When `HEY_ARCHIVE_DIR` is set, the raw
+> message this tool reads is also saved as `{box}/{id}.eml` in that folder,
+> and so is the source read by `hey_download_attachment` and
+> `hey_get_calendar_invite`. The tool response does not change. Finding the
+> box can cost two requests the first time a sender is seen. See the README,
+> "Local archive of messages you read".
+
 > **Paper Trail Bundles**: Some Paper Trail emails (transactional emails from high-volume senders like banks, Wise, Amazon) are grouped into "bundles". These have only a `postingId` (no `topicId`). The tool automatically tries the bundle endpoint when needed.
 
 ---
