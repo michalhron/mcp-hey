@@ -13,6 +13,7 @@ This document provides detailed documentation for all MCP tools provided by mcp-
 - [Sending Tools](#sending-tools) (6 tools)
 - [Organisation Tools](#organisation-tools) (17 tools)
 - [Cache Management](#cache-management) (1 tool)
+- [Sender Groups](#sender-groups)
 - [Error Handling](#error-handling)
 
 ---
@@ -60,7 +61,8 @@ List emails in a Hey.com folder/view. Returns cached results unless force_refres
       "date": "2024-01-15T10:30:00Z",
       "unread": true,
       "bubbledUp": false,
-      "label": "Work"
+      "label": "Work",
+      "sender_group": "imbox"
     }
   ],
   "_cache": {
@@ -69,9 +71,12 @@ List emails in a Hey.com folder/view. Returns cached results unless force_refres
     "age_seconds": 300,
     "is_stale": false,
     "hint": "Cached 5 minutes ago"
-  }
+  },
+  "_sender_groups": { "mode": "on", "unknown": 0, "looked_up": 1, "deferred": 0 }
 }
 ```
+
+`sender_group` is the sender's current Hey delivery setting, not necessarily the box this email is in. See [Sender Groups](#sender-groups).
 
 ---
 
@@ -256,6 +261,7 @@ parsed calendar invites alongside the body.
     "body": "<p>Hi, just wanted to confirm...</p>",
     "date": "2024-01-15T10:30:00Z",
     "threadId": "67890",
+    "sender_group": "imbox",
     "attachments": [
       { "id": "part-1", "filename": "agenda.pdf", "size": 12480, "mime": "application/pdf", "is_calendar": false },
       { "id": "part-2", "filename": "invite.ics", "size": 1842, "mime": "text/calendar", "is_calendar": true }
@@ -267,6 +273,9 @@ parsed calendar invites alongside the body.
   "_cache": {...}
 }
 ```
+
+> **Sender groups**: the thread and each item in `entries` carry
+> `sender_group` for their own sender. See [Sender Groups](#sender-groups).
 
 > **Attachments are metadata-only**. Use `hey_download_attachment` to write
 > the bytes to disk or `hey_get_calendar_invite` to fetch the parsed invite.
@@ -375,6 +384,8 @@ Search emails by query. Uses local FTS cache first for speed, then network for f
 ```
 
 > **Note**: Network search results include `topicId`, `entryId`, subject, sender name, and date. Unlike folder listings, network search results do not include `postingId`, `fromEmail`, `snippet`, `unread`, or `bubbledUp` fields (Hey.com's search page uses a compact result format). FTS cache results may include additional fields if the emails were previously cached from folder listings.
+>
+> Each result carries `sender_group`. Because network results have no sender address, it is taken from the local cache by thread ID, and is `unknown` when the thread was never listed or read before.
 
 ---
 
@@ -956,6 +967,35 @@ Check cache freshness and statistics.
   "global_unread": 12
 }
 ```
+
+---
+
+## Sender Groups
+
+Every tool that returns messages adds `sender_group` to each one: where Hey delivers new mail from that sender today, as set on the sender's contact page ("Deliver their emails to…").
+
+| Value | Meaning |
+|-------|---------|
+| `imbox` | The sender's mail goes to the Imbox |
+| `feed` | The Feed |
+| `paper_trail` | Paper Trail |
+| `screened_out` | The sender is screened out |
+| `unknown` | Not known yet, not a contact, or no sender address |
+
+It describes the sender, not the message: a thread moved by hand, or mail from before the setting changed, can sit in another box.
+
+**Tools:** `hey_list_emails`, `hey_imbox_summary` (`emails` and `bubbledUpEmails`), `hey_list_set_aside`, `hey_list_reply_later`, `hey_list_screener` (cache only), `hey_list_label_emails`, `hey_list_collection_emails`, `hey_search`, `hey_read_email` (the thread and each entry).
+
+**Summary:** these tools also return `_sender_groups` next to `_cache`:
+
+| Field | Meaning |
+|-------|---------|
+| `mode` | `cache` or `on` (see below) |
+| `unknown` | Messages whose sender group is still `unknown` |
+| `looked_up` | Senders looked up on Hey during this call |
+| `deferred` | Senders not looked up yet: over the budget, still running at the time limit, or `cache` mode. Later calls resolve them |
+
+**Settings:** `HEY_SENDER_GROUPS` = `off` (no field, output as before), `cache` (local cache only, no requests) or `on` (default: cache plus up to `HEY_SENDER_GROUP_BUDGET` lookups per call, default 10, at most 3 at a time, waiting at most `HEY_SENDER_GROUP_TIMEOUT_MS`, default 3000). A lookup is two requests and is cached for 30 days (one day for senders who are not contacts).
 
 ---
 

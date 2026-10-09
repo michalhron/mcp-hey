@@ -734,7 +734,7 @@ The contact page's "Change delivery settings" menu, loaded into `<turbo-frame id
 
 A second group, `data-bridge-group="display"`, holds "Separately" and bundled display options and is not part of the destination.
 
-> Structure taken from a captured contact page (2026-10). Used by the optional message archive (`src/contact-box.ts`) to file archived messages by box.
+> Structure taken from a captured contact page (2026-10). Read by `src/contact-box.ts` for `sender_group` on tool output (`src/sender-groups.ts`) and by the optional message archive. Answers are cached in `contact_boxes`: a setting for 30 days, "none" (not a contact, or nothing selected) for one day.
 
 ---
 
@@ -1221,3 +1221,4 @@ When a session expires, requests return a 302 redirect to `/sign_in`. The mcp-he
 | 2026-07-12 | **Fix**: `hey_list_emails(folder="drafts")` was silently returning zero results — `extractEmailsFromHtml` only recognised `/topics/{id}` links for ID extraction, but draft rows carry no `data-identifier`/`data-entry-id` and no `/topics/` link, only `/messages/{id}/edit`. Added a message-ID fallback so drafts are no longer dropped. |
 | 2026-09-21 | Added `hey_list_emails(folder="sent")` reading `GET /sent` (confirmed as the send-success redirect target by the existing `classifyRedirect` check in `src/tools/send.ts`). Reuses the same `article.posting` row parser as every other folder. `from` is hardcoded to `"Me"` (always true for a sent item); the name/email the row markup actually surfaces is treated as the recipient and returned under `to`/`toEmail` instead, except when it's the literal placeholder `"Me"` (as seen on Drafts rows), in which case `to` is left unset rather than mislabelling a placeholder as a recipient. **Unverified live**: no Sent-page HTML was available to confirm the `.posting__detail` value is actually the recipient rather than another "Me" placeholder — treat `to`/`toEmail` accuracy as unconfirmed until checked against a real mailbox. |
 | 2026-10 | Documented `GET /contacts/{contactId}/box_settings` (current delivery destination, marked `aria-checked="true"` in the `deliver` group) and `POST /boxes/{boxId}/designations` (change it). The optional message archive uses the first to file messages by box. |
+| 2026-10 | `GET /contacts/{contactId}/box_settings` now also backs `sender_group` on message results. Lookups pair it with `GET /search?q={email}`, are budgeted per tool call and run at most 3 at a time. |

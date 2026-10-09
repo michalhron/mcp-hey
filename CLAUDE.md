@@ -26,6 +26,7 @@ A local MCP server providing Claude with read/write access to Hey.com email acco
 | MCP Server | Bun/TypeScript, stdio transport, ~30MB idle memory |
 | Auth Helper | Python/pywebview, spawns on-demand for login via system webview |
 | Communication | File-based session sharing via `data/hey-cookies.json` |
+| Sender groups | `sender_group` on message results, from each sender's Hey delivery setting (`src/sender-groups.ts`, `src/contact-box.ts`) |
 | Message archive (optional) | `HEY_ARCHIVE_DIR`: raw messages you read saved as `{box}/{id}.eml` (`src/archive.ts`, `src/contact-box.ts`) |
 
 ---
