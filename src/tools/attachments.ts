@@ -415,7 +415,7 @@ async function fetchAndWalkRawMessage(emailId: string): Promise<{
   attachmentParts: Array<{ id: string; index: number; part: MimePart }>
 }> {
   const resolvedId = await resolveMessageId(emailId)
-  const raw = await fetchRawMessage(resolvedId)
+  const raw = await fetchRawMessage(resolvedId, [emailId])
   return walkRawMime(raw)
 }
 

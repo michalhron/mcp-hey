@@ -1031,7 +1031,7 @@ export async function readEmail(
     const entryResults = await Promise.all(
       entryMessageIds.map(async (eid) => {
         try {
-          const raw = await fetchRawMessage(eid)
+          const raw = await fetchRawMessage(eid, [id])
           const parsed = parseRawEmailText(raw)
           // Probe attachments from the already-fetched raw MIME (C1)
           const probe = probeAttachmentsFromRaw(raw, eid)
