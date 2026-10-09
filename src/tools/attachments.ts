@@ -14,7 +14,7 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
-import { heyClient } from "../hey-client"
+import { fetchRawMessage } from "../archive"
 import { resolveMessageId } from "./read"
 
 export interface AttachmentMeta {
@@ -415,7 +415,7 @@ async function fetchAndWalkRawMessage(emailId: string): Promise<{
   attachmentParts: Array<{ id: string; index: number; part: MimePart }>
 }> {
   const resolvedId = await resolveMessageId(emailId)
-  const raw = await heyClient.fetchHtml(`/messages/${resolvedId}.text`)
+  const raw = await fetchRawMessage(resolvedId)
   return walkRawMime(raw)
 }
 

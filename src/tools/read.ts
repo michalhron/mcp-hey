@@ -1,4 +1,5 @@
 import { type HTMLElement, parse as parseHtml } from "node-html-parser"
+import { fetchRawMessage } from "../archive"
 import {
   type CacheMetadata,
   type CachedResult,
@@ -1030,7 +1031,7 @@ export async function readEmail(
     const entryResults = await Promise.all(
       entryMessageIds.map(async (eid) => {
         try {
-          const raw = await heyClient.fetchHtml(`/messages/${eid}.text`)
+          const raw = await fetchRawMessage(eid)
           const parsed = parseRawEmailText(raw)
           // Probe attachments from the already-fetched raw MIME (C1)
           const probe = probeAttachmentsFromRaw(raw, eid)
