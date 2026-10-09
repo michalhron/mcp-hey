@@ -112,7 +112,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-Restart Claude Desktop. You should see `hey` listed as an available integration.
+Quit Claude Desktop completely (Cmd+Q, not just closing the window) **before** you edit this file, then start it again. Claude Desktop writes its config back when it quits, so changes made while it is running, such as new `env` variables, are silently lost on the next restart. You should then see `hey` listed as an available integration.
 
 ### Cursor
 
@@ -284,7 +284,7 @@ Set `HEY_ARCHIVE_DIR` to keep a copy of every message you open through mcp-hey:
 - Each message is saved as `<box>/<message id>.eml`, the raw RFC822 source with attachments, exactly as Hey serves it from `/messages/{id}.text`.
 - `<box>` is `imbox`, `feed`, `paper_trail`, `set_aside`, `reply_later` or `unknown`. It is found in this order:
   1. the box the message was listed in, from mcp-hey's cache (no request),
-  2. the sender's delivery setting in Hey ("Deliver their emails to…" on the contact page), cached for 30 days. The first lookup for a sender costs two requests. `HEY_ARCHIVE_SENDER_LOOKUP=off` skips this step,
+  2. the sender's delivery setting in Hey ("Deliver their emails to…" on the contact page), cached for 30 days (a sender who is not a contact is checked again after a day). The first lookup for a sender costs two requests. `HEY_ARCHIVE_SENDER_LOOKUP=off` skips this step,
   3. the box the same sender's mail was listed in (no request),
   4. `unknown`, for example a sender who is not a contact.
 - `HEY_ARCHIVE_BOXES` limits which boxes are saved, for example `imbox,set_aside,reply_later` to leave out newsletters (The Feed) and receipts (Paper Trail). Add `unknown` to keep messages whose box could not be determined. Unset means every box.
