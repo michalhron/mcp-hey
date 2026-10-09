@@ -326,6 +326,10 @@ See [`SECURITY.md`](SECURITY.md) for how to report vulnerabilities.
 - **MCP client can't launch the server** — `args` must be an absolute path, not relative. If `bun` itself fails with `spawn bun ENOENT`, see [macOS: `bun` PATH](#macos-bun-path).
 - **Cookie name changed** — Hey has renamed session cookies before (e.g. `_hey_session` → `session_token`, see [`docs/API.md`](docs/API.md) changelog). If auth silently fails after a Hey update, capture fresh cookies and compare.
 
+## Roadmap
+
+[Next steps and the personal-index overhaul](docs/next-steps-and-personal-index.md): what to build next, including a backfill command that saves whole HEY boxes to the archive (today only messages you open are saved), and the plan to make [new-outlook-mcp](https://github.com/michalhron/new-outlook-mcp) a general local index for HEY mail, Outlook mail, notes and files.
+
 ## Contributing
 
 Contributions welcome via pull request. Please:
