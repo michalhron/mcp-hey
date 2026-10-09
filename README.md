@@ -23,6 +23,7 @@ mcp-hey has two moving parts: a Bun/TypeScript MCP server that exposes Hey tools
 - Search emails across boxes
 - Organise mail (set aside, reply later, screen in/out, bubble up)
 - Local SQLite cache for faster repeated reads and full-text search
+- Sender groups: every message says whether Hey delivers its sender's mail to the Imbox, The Feed or Paper Trail
 - Lightweight — around 30 MB idle memory
 - Browser-identical headers and TLS posture to avoid detection
 - Runs entirely on your machine; stdio transport with no network exposure
@@ -191,6 +192,8 @@ mcp-hey/
     hey-client.ts      # HTTP client with cookie injection
     session.ts         # Session management and validation
     errors.ts          # Error classes and sanitisation
+    contact-box.ts     # A sender's delivery setting (Imbox, Feed, Paper Trail) from their contact page
+    sender-groups.ts   # sender_group on tool output: modes, lookup budget, concurrency
     cache/             # SQLite cache (db, schema, messages, search)
     tools/             # MCP tool implementations
       read.ts          # Reading and listing
@@ -224,6 +227,32 @@ mcp-hey/
 | Screener | `hey_screen`, `hey_screen_by_id` |
 | Search | `hey_search` |
 | Cache | `hey_cache_status` |
+
+## Sender groups
+
+Every message a tool returns carries `sender_group`: where Hey delivers new mail from that sender, as set on the sender's contact page ("Deliver their emails to…").
+
+| Value | Meaning |
+|-------|---------|
+| `imbox` | The sender's mail goes to the Imbox |
+| `feed` | The Feed (newsletters, updates) |
+| `paper_trail` | Paper Trail (receipts, confirmations) |
+| `screened_out` | The sender is screened out |
+| `unknown` | Not known yet, not a contact, or no sender address available |
+
+It describes the sender's current setting, not the message. A thread moved by hand to another box, or mail that arrived before the setting changed, can sit somewhere else. To know where a message is, use the view it was listed from.
+
+Tools that return messages: `hey_list_emails`, `hey_imbox_summary`, `hey_list_set_aside`, `hey_list_reply_later`, `hey_list_screener`, `hey_list_label_emails`, `hey_list_collection_emails`, `hey_search` and `hey_read_email` (the thread and each entry). Their output also gets a `_sender_groups` summary next to `_cache`.
+
+Finding a sender's setting takes two requests (a contact search, then the contact's delivery settings). Answers are cached: a setting for 30 days, "not a contact" for one day. Configure with environment variables:
+
+| Variable | Values | Default |
+|----------|--------|---------|
+| `HEY_SENDER_GROUPS` | `off`: no field and no extra work. `cache`: answers from the local cache only, never a request. `on`: the cache plus a few lookups per call | `on` |
+| `HEY_SENDER_GROUP_BUDGET` | Lookups per tool call in `on` mode, 0-50 | `10` |
+| `HEY_SENDER_GROUP_TIMEOUT_MS` | How long a tool call waits for its lookups, 0-30000 | `3000` |
+
+Lookups run at most 3 at a time, are shared between messages from the same sender, and do not start when Hey's rate-limit headroom is low. Senders over the budget, and lookups still running at the time limit, come back as `unknown` for now; the running lookups finish in the background, so a later call has the answer. `hey_list_screener` uses the cache only, because senders waiting in the Screener are not contacts yet. Hey's search results show only a sender name, so `hey_search` can tag a result only when its sender address is in the local cache.
 
 ## Privacy and security
 
