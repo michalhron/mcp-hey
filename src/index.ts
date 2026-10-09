@@ -17,7 +17,8 @@ import {
 } from "./cache"
 import { sanitiseError } from "./errors"
 import { heyClient } from "./hey-client"
-import { withSenderGroups } from "./sender-groups"
+import { applyGroupFilter, groupFilterFor } from "./sender-group-filter"
+import { senderGroupSettings, withSenderGroups } from "./sender-groups"
 import { downloadAttachment, getCalendarInvite } from "./tools/attachments"
 import {
   type BubbleUpSlot,
@@ -239,13 +240,22 @@ const tools: Tool[] = [
     name: "hey_list_set_aside",
     annotations: { readOnlyHint: true, openWorldHint: true },
     description:
-      "List emails currently in the Set Aside stack. Returns cached results (same shape as hey_list_emails) unless force_refresh=true. Use hey_unset_aside with the returned postingId to remove an item.",
+      "List emails currently in the Set Aside stack. Returns cached results (same shape as hey_list_emails) unless force_refresh=true; pass group to keep only emails from senders delivered to those boxes. Use hey_unset_aside with the returned postingId to remove an item.",
     inputSchema: {
       type: "object" as const,
       properties: {
         force_refresh: {
           type: "boolean",
           description: "Bypass cache and fetch fresh data (default: false)",
+        },
+        group: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["imbox", "feed", "paper_trail", "screened_out"],
+          },
+          description:
+            "Optional: keep only emails whose sender_group (the sender's current Hey delivery setting) is one of these. Emails whose sender group is still unknown are left out and counted in _group_filter (unclassified, unclassified_ids). Default: no filter.",
         },
       },
     },
@@ -254,13 +264,22 @@ const tools: Tool[] = [
     name: "hey_list_reply_later",
     annotations: { readOnlyHint: true, openWorldHint: true },
     description:
-      "List emails currently in the Reply Later stack. Returns cached results (same shape as hey_list_emails) unless force_refresh=true. Use hey_remove_reply_later with the returned postingId to remove an item.",
+      "List emails currently in the Reply Later stack. Returns cached results (same shape as hey_list_emails) unless force_refresh=true; pass group to keep only emails from senders delivered to those boxes. Use hey_remove_reply_later with the returned postingId to remove an item.",
     inputSchema: {
       type: "object" as const,
       properties: {
         force_refresh: {
           type: "boolean",
           description: "Bypass cache and fetch fresh data (default: false)",
+        },
+        group: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["imbox", "feed", "paper_trail", "screened_out"],
+          },
+          description:
+            "Optional: keep only emails whose sender_group (the sender's current Hey delivery setting) is one of these. Emails whose sender group is still unknown are left out and counted in _group_filter (unclassified, unclassified_ids). Default: no filter.",
         },
       },
     },
@@ -294,7 +313,7 @@ const tools: Tool[] = [
     name: "hey_list_label_emails",
     annotations: { readOnlyHint: true, openWorldHint: true },
     description:
-      "List emails with a specific label. Returns cached results (same shape as hey_list_emails, including sender_group) unless force_refresh=true.",
+      "List emails with a specific label. Returns cached results (same shape as hey_list_emails, including sender_group) unless force_refresh=true. Pass group to keep only emails from senders delivered to those boxes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -316,6 +335,15 @@ const tools: Tool[] = [
           type: "boolean",
           description: "Bypass cache and fetch fresh data (default: false)",
         },
+        group: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["imbox", "feed", "paper_trail", "screened_out"],
+          },
+          description:
+            "Optional: keep only emails whose sender_group (the sender's current Hey delivery setting) is one of these. Emails whose sender group is still unknown are left out and counted in _group_filter (unclassified, unclassified_ids). Default: no filter.",
+        },
       },
       required: ["label_id"],
     },
@@ -334,7 +362,7 @@ const tools: Tool[] = [
     name: "hey_list_collection_emails",
     annotations: { readOnlyHint: true, openWorldHint: true },
     description:
-      "List emails in a specific collection. Returns cached results (same shape as hey_list_emails, including sender_group) unless force_refresh=true.",
+      "List emails in a specific collection. Returns cached results (same shape as hey_list_emails, including sender_group) unless force_refresh=true. Pass group to keep only emails from senders delivered to those boxes.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -355,6 +383,15 @@ const tools: Tool[] = [
         force_refresh: {
           type: "boolean",
           description: "Bypass cache and fetch fresh data (default: false)",
+        },
+        group: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["imbox", "feed", "paper_trail", "screened_out"],
+          },
+          description:
+            "Optional: keep only emails whose sender_group (the sender's current Hey delivery setting) is one of these. Emails whose sender group is still unknown are left out and counted in _group_filter (unclassified, unclassified_ids). Default: no filter.",
         },
       },
       required: ["collection_id"],
@@ -509,7 +546,7 @@ const tools: Tool[] = [
     name: "hey_search",
     annotations: { readOnlyHint: true, openWorldHint: true },
     description:
-      "Search emails by query. Uses local FTS cache first, then network. Each result includes sender_group (see hey_list_emails); it is unknown when the sender address is not in the local cache, because Hey search results show only a name. Use force_refresh for real-time results.",
+      "Search emails by query. Uses local FTS cache first, then network. Each result includes sender_group (see hey_list_emails); it is unknown when the sender address is not in the local cache, because Hey search results show only a name. Pass group to keep only results from senders delivered to those boxes. Use force_refresh for real-time results.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -524,6 +561,15 @@ const tools: Tool[] = [
         force_refresh: {
           type: "boolean",
           description: "Bypass cache and search via network (default: false)",
+        },
+        group: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["imbox", "feed", "paper_trail", "screened_out"],
+          },
+          description:
+            "Optional: keep only emails whose sender_group (the sender's current Hey delivery setting) is one of these. Emails whose sender group is still unknown are left out and counted in _group_filter (unclassified, unclassified_ids). Default: no filter.",
         },
       },
       required: ["query"],
@@ -1185,6 +1231,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     let result: unknown
 
+    // Optional sender group filter (see sender-group-filter.ts).
+    const filter = groupFilterFor(name, args, senderGroupSettings().mode)
+    if (filter.error) return errorResult(filter.error)
+
     switch (name) {
       // Reading tools
       case "hey_list_emails": {
@@ -1781,6 +1831,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       console.error(
         "[mcp-hey] Could not add sender groups:",
         sanitiseError(error),
+      )
+    }
+    if (filter.groups) {
+      result = applyGroupFilter(
+        result,
+        filter.groups,
+        senderGroupSettings().mode,
       )
     }
 
