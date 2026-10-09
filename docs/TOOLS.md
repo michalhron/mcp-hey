@@ -113,6 +113,7 @@ List emails in the Set Aside stack (emails saved for later).
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | force_refresh | boolean | No | false | Bypass cache and fetch fresh data |
+| group | string[] | No | - | Keep only emails whose `sender_group` is one of `imbox`, `feed`, `paper_trail`, `screened_out`. See [Filtering by sender group](#filtering-by-sender-group) |
 
 **Returns:** Same structure as `hey_list_imbox`
 
@@ -126,6 +127,7 @@ List emails in the Reply Later stack (emails pending response).
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | force_refresh | boolean | No | false | Bypass cache and fetch fresh data |
+| group | string[] | No | - | Keep only emails whose `sender_group` is one of `imbox`, `feed`, `paper_trail`, `screened_out`. See [Filtering by sender group](#filtering-by-sender-group) |
 
 **Returns:** Same structure as `hey_list_imbox`
 
@@ -193,6 +195,7 @@ List emails with a specific label.
 | limit | number | No | 25 | Maximum number of emails to return (1-100) |
 | page | number | No | 1 | Page number for pagination |
 | force_refresh | boolean | No | false | Bypass cache and fetch fresh data |
+| group | string[] | No | - | Keep only emails whose `sender_group` is one of `imbox`, `feed`, `paper_trail`, `screened_out`. See [Filtering by sender group](#filtering-by-sender-group) |
 
 **Returns:** Same structure as `hey_list_imbox`
 
@@ -231,6 +234,7 @@ List emails in a specific collection.
 | limit | number | No | 25 | Maximum number of emails to return (1-100) |
 | page | number | No | 1 | Page number for pagination |
 | force_refresh | boolean | No | false | Bypass cache and fetch fresh data |
+| group | string[] | No | - | Keep only emails whose `sender_group` is one of `imbox`, `feed`, `paper_trail`, `screened_out`. See [Filtering by sender group](#filtering-by-sender-group) |
 
 **Returns:** Same structure as `hey_list_imbox`
 
@@ -359,6 +363,7 @@ Search emails by query. Uses local FTS cache first for speed, then network for f
 | query | string | **Yes** | - | Search query (1-500 characters) |
 | limit | number | No | 25 | Maximum number of results (1-100) |
 | force_refresh | boolean | No | false | Bypass cache and search via network |
+| group | string[] | No | - | Keep only emails whose `sender_group` is one of `imbox`, `feed`, `paper_trail`, `screened_out`. See [Filtering by sender group](#filtering-by-sender-group) |
 
 **Returns:**
 ```json
@@ -997,6 +1002,36 @@ It describes the sender, not the message: a thread moved by hand, or mail from b
 
 **Settings:** `HEY_SENDER_GROUPS` = `off` (no field, output as before), `cache` (local cache only, no requests) or `on` (default: cache plus up to `HEY_SENDER_GROUP_BUDGET` lookups per call, default 10, at most 3 at a time, waiting at most `HEY_SENDER_GROUP_TIMEOUT_MS`, default 3000). A lookup is two requests and is cached for 30 days (one day for senders who are not contacts).
 
+
+### Filtering by sender group
+
+`hey_search`, `hey_list_set_aside`, `hey_list_reply_later`, `hey_list_label_emails` and `hey_list_collection_emails` take an optional `group`: one or more of `imbox`, `feed`, `paper_trail`, `screened_out`. Only emails whose `sender_group` is in the list are returned, for example `group: ["feed"]` on a label to find its newsletters.
+
+Senders not cached yet are looked up first, within the same per-call budget. Emails whose sender group is still `unknown` are left out but never silently: the output gets a `_group_filter` report.
+
+```json
+"_group_filter": {
+  "groups": ["feed"],
+  "matched": 4,
+  "excluded": 9,
+  "unclassified": 3,
+  "unclassified_ids": ["1907289505", "1907289511", "1907289530"],
+  "note": "3 message(s) have no sender group yet and were left out. Calling again resolves more senders (a few per call); or read them by ID."
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `matched` | Emails returned |
+| `excluded` | Emails from senders in another group |
+| `unclassified` | Emails whose sender group is still `unknown`, left out |
+| `unclassified_ids` | Their topic IDs (at most 20), for `hey_read_email` |
+
+Notes:
+- The filter applies to the page that was fetched: `limit` counts emails before filtering, so a filtered result can hold fewer than `limit` emails.
+- `group` is refused when `HEY_SENDER_GROUPS=off`. In `cache` mode it filters on cached answers only.
+- `hey_list_emails` has no `group`: its `imbox`, `feed` and `paper_trail` views are already scoped to one box, and the same box and delivery setting usually agree. To find, say, Feed senders whose mail sits in the Imbox, list the Imbox and read `sender_group`.
+- `hey_imbox_summary` and `hey_list_screener` have no `group` either: the summary is an overview, and Screener senders are not contacts yet, so they have no group.
 ---
 
 ## Error Handling
