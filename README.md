@@ -254,6 +254,10 @@ Finding a sender's setting takes two requests (a contact search, then the contac
 
 Lookups run at most 3 at a time, are shared between messages from the same sender, and do not start when Hey's rate-limit headroom is low. Senders over the budget, and lookups still running at the time limit, come back as `unknown` for now; the running lookups finish in the background, so a later call has the answer. `hey_list_screener` uses the cache only, because senders waiting in the Screener are not contacts yet. Hey's search results show only a sender name, so `hey_search` can tag a result only when its sender address is in the local cache.
 
+### Filtering by sender group
+
+`hey_search`, `hey_list_set_aside`, `hey_list_reply_later`, `hey_list_label_emails` and `hey_list_collection_emails` accept `group`, one or more of `imbox`, `feed`, `paper_trail`, `screened_out`, and return only emails from senders in those groups. Emails whose sender group is still unknown are left out and reported in `_group_filter` (count and IDs), never dropped silently. `hey_list_emails` takes no `group`, because its Imbox, Feed and Paper Trail views are already scoped to one box. See [`docs/TOOLS.md`](docs/TOOLS.md#filtering-by-sender-group).
+
 ## Privacy and security
 
 - No credentials are ever stored — only session cookies, written with `600` permissions.
