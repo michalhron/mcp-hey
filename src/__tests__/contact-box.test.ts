@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import {
   CONTACT_BOX_TTL_SECONDS,
   type ContactBoxFetcher,
-  NO_CONTACT_TTL_SECONDS,
   createContactBoxResolver,
+  NO_CONTACT_TTL_SECONDS,
   normaliseSender,
   parseDeliveryBox,
 } from "../contact-box"

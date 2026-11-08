@@ -14,7 +14,7 @@
  * share one request.
  *
  * This module has no dependency on any caller. It is used by sender groups
- * (`sender-groups.ts`) and by the optional message archive.
+ * (`sender-groups.ts`).
  */
 
 import { parse as parseHtml } from "node-html-parser"

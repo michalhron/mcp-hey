@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS search_cache (
 );
 
 -- Where Hey delivers each sender's mail (contact page "Deliver their emails to"),
--- used to file archived messages by box. One row per lowercased address.
+-- used for sender groups and to file archived messages by box. One row per
+-- lowercased address; box "none" means not a contact or no setting marked.
 CREATE TABLE IF NOT EXISTS contact_boxes (
     sender_email TEXT PRIMARY KEY,
     box TEXT NOT NULL,
