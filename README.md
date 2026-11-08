@@ -109,6 +109,41 @@ Report vulnerabilities via [`SECURITY.md`](SECURITY.md).
 
 Conventional commits; `bun run format`, `bun run lint` and `bun test` must pass; update [`docs/API.md`](docs/API.md) when Hey's behaviour changes. See [`CLAUDE.md`](CLAUDE.md).
 
+## Local archive of messages you read (optional)
+
+Set `HEY_ARCHIVE_DIR` to keep a copy of every message you open through mcp-hey:
+
+```json
+{
+  "mcpServers": {
+    "hey": {
+      "command": "bun",
+      "args": ["run", "/absolute/path/to/mcp-hey/src/index.ts"],
+      "env": {
+        "HEY_ARCHIVE_DIR": "~/Mail/hey-archive",
+        "HEY_ARCHIVE_BOXES": "imbox,set_aside,reply_later"
+      }
+    }
+  }
+}
+```
+
+- Each message is saved as `<box>/<message id>.eml`, the raw RFC822 source with attachments, exactly as Hey serves it from `/messages/{id}.text`.
+- `<box>` is `imbox`, `feed`, `paper_trail`, `set_aside`, `reply_later` or `unknown`. It is found in this order:
+  1. the box the message was listed in, from mcp-hey's cache (no request),
+  2. the sender's delivery setting in Hey ("Deliver their emails to…" on the contact page), cached for 30 days (a sender who is not a contact is checked again after a day). The first lookup for a sender costs two requests. `HEY_ARCHIVE_SENDER_LOOKUP=off` skips this step,
+  3. the box the same sender's mail was listed in (no request),
+  4. `unknown`, for example a sender who is not a contact.
+- `HEY_ARCHIVE_BOXES` limits which boxes are saved, for example `imbox,set_aside,reply_later` to leave out newsletters (The Feed) and receipts (Paper Trail). Add `unknown` to keep messages whose box could not be determined. Unset means every box.
+- Only messages you read are saved: `hey_read_email`, `hey_download_attachment` and `hey_get_calendar_invite` already fetch this source, so archiving adds no requests to Hey.
+- Files are written atomically with permissions `600` in a folder with permissions `700`. Existing files are never overwritten.
+- A failed write is logged to stderr and never breaks the tool call.
+- Unset or empty means off, which is the default.
+
+The folder is plain `.eml` files, so any local tool can index it. [new-outlook-mcp](https://github.com/michalhron/new-outlook-mcp) imports it into its archive and search by meaning.
+
+The archive holds the full text of your mail. Keep it out of synced or shared folders unless you mean to share it.
+
 ## Licence
 
 MIT. See [LICENCE](LICENCE).
